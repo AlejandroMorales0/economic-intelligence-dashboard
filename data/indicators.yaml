@@ -1,0 +1,40 @@
+schema_version: 1
+geography: US
+indicators:
+  - id: unemployment_rate
+    domain: labor
+    source: fred
+    series_id: UNRATE
+    title: Unemployment Rate
+    units: Percent
+    frequency: Monthly
+    seasonal_adjustment: Seasonally Adjusted
+    source_url: https://fred.stlouisfed.org/series/UNRATE
+    transformation: none
+    status: local_ingestion
+  - id: real_gdp
+    domain: growth
+    source: fred
+    series_id: GDPC1
+    status: planned
+  - id: consumer_price_index
+    domain: inflation
+    source: fred
+    series_id: CPIAUCSL
+    status: planned
+    notes: Verify metadata; derive and label year-over-year inflation separately.
+  - id: federal_funds_rate
+    domain: interest_rates
+    source: fred
+    series_id: FEDFUNDS
+    status: planned
+  - id: federal_debt
+    domain: fiscal_health
+    source: treasury_fiscal_data
+    status: planned
+    notes: Select endpoint and debt definition before implementation.
+  - id: federal_budget_balance
+    domain: fiscal_health
+    source: treasury_fiscal_data
+    status: planned
+    notes: Select endpoint, sign convention, and reporting period before implementation.
