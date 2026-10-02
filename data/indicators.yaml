@@ -11,7 +11,7 @@ indicators:
     seasonal_adjustment: Seasonally Adjusted
     source_url: https://fred.stlouisfed.org/series/UNRATE
     transformation: none
-    status: local_ingestion
+    status: local_vertical_slice
   - id: real_gdp
     domain: growth
     source: fred

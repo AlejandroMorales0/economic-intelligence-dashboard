@@ -8,7 +8,7 @@ Build a reproducible portfolio project that helps users inspect national U.S. ec
 
 | Domain | Initial candidate | Source | Status |
 | --- | --- | --- | --- |
-| Labor | Unemployment rate (`UNRATE`) | FRED / BLS | Local ingestion implemented |
+| Labor | Unemployment rate (`UNRATE`) | FRED / BLS | Local ingestion, read API, and chart implemented |
 | Growth | Real GDP (`GDPC1`) | FRED / BEA | Planned |
 | Inflation | CPI (`CPIAUCSL`) | FRED / BLS | Planned |
 | Interest rates | Effective federal funds rate (`FEDFUNDS`) | FRED / Federal Reserve | Planned |
@@ -21,8 +21,8 @@ Candidate indicators require metadata verification before implementation. CPI le
 1. Retrieve `UNRATE` from FRED with a server-side API key.
 2. Save raw responses with source and retrieval provenance.
 3. Normalize observations into date/value records, retaining FRED realtime fields and nulls for missing values.
-4. Expose the stored series through a read API (next milestone).
-5. Render a React unemployment-rate line chart with date filters, percent units, source attribution, latest available observation, and retrieval timestamp (next milestone).
+4. Expose the stored series through a local read API (implemented).
+5. Render a React unemployment-rate line chart with date filters, percent units, source attribution, latest available observation in the selected range, and retrieval timestamp (implemented).
 
 Local ingestion acceptance criteria:
 
@@ -32,12 +32,14 @@ Local ingestion acceptance criteria:
 - Raw data is retained and refreshes atomically replace the latest processed snapshot.
 - Offline tests cover retrieval, normalization, failures, and repeat ingestion.
 
-Full vertical-slice acceptance criteria, still outstanding:
+Full vertical-slice acceptance criteria:
 
 - API serves persisted data without requesting FRED on every page load.
 - Chart handles loading, empty, missing-value, and error states and does not interpolate missing observations as zero.
 - UI distinguishes observation period from data retrieval time.
 - End-to-end checks verify the fetched series reaches the chart.
+
+The read API and frontend implement these behaviors locally. Backend tests exercise ingestion-to-API delivery and date filtering; frontend tests exercise contract validation, loading, errors/retry, missing values, empty ranges, and consistent filtering. Browser review verifies actual chart rendering and representative range controls. AWS operation, production API hosting, and scheduled refresh remain later milestones.
 
 ## Later milestones
 
