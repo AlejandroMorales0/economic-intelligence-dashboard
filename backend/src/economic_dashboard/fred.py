@@ -1,6 +1,8 @@
 """FRED observations client. Never include credential-bearing URLs in errors."""
 
 import json
+import socket
+import ssl
 import time
 from dataclasses import dataclass
 from datetime import date
@@ -43,6 +45,7 @@ class FredClient:
         url = "https://api.stlouisfed.org/fred/series/observations?" + urlencode(
             {**params, "api_key": self.api_key, "file_type": "json"}
         )
+        failure = "network connection failed; check connectivity and proxy settings"
         for attempt in range(self.attempts):
             try:
                 with self.opener(url, timeout=self.timeout) as response:
@@ -57,13 +60,26 @@ class FredClient:
                     raise IngestionError(
                         f"FRED HTTP {status}; check credentials and request parameters."
                     ) from None
-            except (URLError, TimeoutError, OSError):
-                pass
+                failure = f"FRED HTTP {status}; try again later"
+            except (URLError, OSError) as error:
+                reason = error.reason if isinstance(error, URLError) else error
+                if isinstance(reason, ssl.SSLCertVerificationError):
+                    raise IngestionError(
+                        "TLS certificate verification failed. Repair Python's CA certificate "
+                        "bundle; on python.org macOS installs, run Install Certificates.command "
+                        "from your Python folder in /Applications."
+                    ) from None
+                if isinstance(reason, socket.gaierror):
+                    failure = "DNS lookup failed; check internet connection and DNS settings"
+                elif isinstance(reason, TimeoutError):
+                    failure = "connection timed out; check connectivity or try again later"
+                else:
+                    failure = "network connection failed; check connectivity and proxy settings"
             except (ValueError, UnicodeError):
                 raise IngestionError("FRED returned invalid JSON.") from None
             if attempt + 1 < self.attempts:
                 self.sleeper(2**attempt)
-        raise IngestionError("FRED request failed after bounded retries; try again later.")
+        raise IngestionError(f"FRED request failed after bounded retries: {failure}.")
 
     def fetch_unrate(self, start: str, end: str | None = None) -> list[dict]:
         validate_range(start, end)

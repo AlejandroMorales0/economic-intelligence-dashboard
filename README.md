@@ -27,6 +27,8 @@ PYTHONPATH=backend/src python -m economic_dashboard ingest-unrate --start 2000-0
 
 `.env` is not loaded automatically. An exported environment variable works too. Optional `--end YYYY-MM-DD` bounds the requested interval. Defaults are configured through `.env.example`.
 
+If a python.org macOS installation reports a TLS certificate verification failure, run `Install Certificates.command` from its Python folder in `/Applications` (for example, `/Applications/Python 3.11/Install Certificates.command`) and retry. This installs the certificate bundle used by that Python installation, including virtual environments based on it. See [Python's macOS setup instructions](https://docs.python.org/3/using/mac.html).
+
 Generated files under `data/local/` are ignored by Git:
 
 - `raw/fred/UNRATE/<run-id>.json`: original response pages plus retrieval provenance (no API key).

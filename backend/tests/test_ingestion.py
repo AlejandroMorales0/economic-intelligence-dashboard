@@ -1,5 +1,7 @@
 import io
 import json
+import socket
+import ssl
 import tempfile
 import unittest
 from pathlib import Path
@@ -70,6 +72,27 @@ class FredTests(unittest.TestCase):
             FredClient("test-secret", opener=opener).fetch_unrate("2024-01-01")
         self.assertEqual(opener.call_count, 1)
         self.assertNotIn("test-secret", str(caught.exception))
+
+    def test_certificate_failure_is_actionable_and_not_retried(self):
+        for error in [ssl.SSLCertVerificationError("test-secret"),
+                      URLError(ssl.SSLCertVerificationError("test-secret"))]:
+            opener, sleeper = Mock(side_effect=error), Mock()
+            with self.assertRaises(IngestionError) as caught:
+                FredClient("test-secret", opener=opener, sleeper=sleeper).fetch_unrate("2024-01-01")
+            self.assertIn("Install Certificates.command", str(caught.exception))
+            self.assertNotIn("test-secret", str(caught.exception))
+            self.assertEqual(opener.call_count, 1)
+            sleeper.assert_not_called()
+
+    def test_network_failure_categories_remain_sanitized(self):
+        cases = [(URLError(socket.gaierror("test-secret")), "DNS lookup failed"),
+                 (TimeoutError("test-secret"), "connection timed out"),
+                 (HTTPError("test-secret", 503, "test-secret", {}, io.BytesIO()), "HTTP 503")]
+        for error, message in cases:
+            with self.subTest(message=message), self.assertRaises(IngestionError) as caught:
+                FredClient("test-secret", opener=Mock(side_effect=error), attempts=1).fetch_unrate("2024-01-01")
+            self.assertIn(message, str(caught.exception))
+            self.assertNotIn("test-secret", str(caught.exception))
 
     def test_malformed_response_and_incomplete_pages(self):
         payloads = [[], {"error_code": 400}, page([], 1), page([row()], 0),
