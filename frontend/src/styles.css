@@ -17,6 +17,10 @@ button:focus-visible, input:focus-visible, summary:focus-visible, a:focus-visibl
 .scope-badge { font-size: 12px; border: 1px solid #456166; border-radius: 20px; padding: 8px 13px; display: flex; align-items: center; gap: 8px; }
 .scope-badge span { width: 6px; height: 6px; border-radius: 50%; background: #8ecbb0; }
 .page-content { max-width: 1256px; margin: auto; padding: 38px 36px 24px; }
+.indicator-nav { margin-bottom: 28px; border-bottom: 1px solid #dce5e2; }
+.indicator-nav button { padding: 10px 20px 12px; font-size: 13px; font-weight: 600; color: #647874; border-bottom: 3px solid transparent; }
+.indicator-nav button[aria-selected="true"] { color: #12776c; border-bottom-color: #12776c; }
+.method-note { margin-top: 20px; padding: 12px 16px; background: #f4f8f6; border-left: 3px solid #b8cec4; font-size: 12px; color: #506c66; line-height: 1.7; }
 .section-intro { margin-bottom: 25px; }
 .eyebrow { font-size: 11px; text-transform: uppercase; letter-spacing: 1.7px; font-weight: 650; color: #647874; margin-bottom: 7px; }
 h2 { font-size: 30px; letter-spacing: -.9px; font-weight: 620; line-height: 1.3; }

@@ -4,7 +4,7 @@ A portfolio project for understanding national U.S. economic conditions across g
 
 ## Current status
 
-The first vertical slice works locally: ingest FRED `UNRATE`, retain raw responses, normalize data, serve the saved snapshot through a Python read API, and display an interactive React unemployment-rate chart. The database and AWS infrastructure remain planned; no AWS resources have been deployed.
+Two vertical slices work locally: unemployment (`UNRATE`) and CPI inflation derived from `CPIAUCSL`. Both retain raw responses, normalize data, serve stored observations through a Python read API, and display interactive React charts. The database and AWS infrastructure remain planned; no AWS resources have been deployed.
 
 ## Local setup
 
@@ -36,6 +36,28 @@ Generated files under `data/local/` are ignored by Git:
 
 Re-running refreshes the snapshot rather than appending duplicate observations. FRED revisions replace previously retrieved values; this is a latest-data view, not a historical vintage database. A failed request or invalid response leaves the existing processed snapshot intact.
 
+## Ingest CPI and calculate inflation
+
+After loading `.env` as above, run from the repository root:
+
+```sh
+PYTHONPATH=backend/src python -m economic_dashboard ingest-cpi --start 2000-01-01
+```
+
+The reusable command `ingest --series CPIAUCSL --start 2000-01-01` does the same job; `ingest --series UNRATE` supports unemployment too. Existing `ingest-unrate` commands continue to work.
+
+CPI ingestion automatically fetches from January 1999 for a January 2000 display start. The raw archive is under `data/local/raw/fred/CPIAUCSL/`; the normalized original-unit index is stored in `data/local/processed/CPIAUCSL.json`, including the lookback. `requested_start` records the actual fetch start; `display_start` records the requested chart start. Optional `--end` remains inclusive.
+
+The read API computes `CPIAUCSL_YOY` from that single CPI snapshot before applying API date filters:
+
+```text
+Inflation (%) = (CPI this month / CPI in the same month one year earlier - 1) × 100
+```
+
+The calculation matches dates, not row positions. Missing current/prior observations produce `null`; an absent current month inside the display period is represented as a null observation to keep a chart gap. CPI values must be positive; inflation can be negative. The derived series keeps full precision until display, which rounds to one decimal place. A derived snapshot is not independently persisted, so its values and source index cannot drift between refreshes.
+
+`CPIAUCSL` is seasonally adjusted, monthly, and measured in Index 1982-1984=100. This derived rate can differ from the commonly reported headline rate based on unadjusted CPI. See [FRED's CPI metadata](https://fred.stlouisfed.org/series/CPIAUCSL).
+
 ## Run the dashboard
 
 Use Node.js 22 LTS (22.12+) or 24 LTS and npm in addition to Python. Check `node --version` and select your current Node installation before running npm; older system installations will not run Vite. From the repository root, start the read API in one terminal:
@@ -55,13 +77,17 @@ npm run dev
 
 Open **http://127.0.0.1:5173**. The API listens on `127.0.0.1:8000`; Vite proxies `/api` to it. Both servers bind to loopback for local use. Run all backend commands from the repository root so the default `data/local` path resolves correctly. If ingestion uses another data directory, pass the same directory with `serve --data-dir PATH` (or load `.env` in that terminal).
 
-The read API needs no FRED key. The dashboard shows saved data only: run ingestion again, then click **Reload saved data** to see a new snapshot. Reload does not fetch FRED. Date presets end at the latest saved observation; custom date filters are inclusive. The latest-rate card and observation table follow the selected range. Retrieval time and overall dataset coverage describe the saved snapshot and remain visible across filters. Missing values stay null and break the chart line.
+The read API needs no FRED key. Use the **Labor** and **Inflation** tabs to select a domain (arrow keys switch tabs too). Each view shows saved data only: run ingestion again, then click **Reload saved data** to see a new snapshot. Reload does not fetch FRED. Date presets end at the latest saved observation; custom date filters are inclusive. The latest-rate card and observation table follow the selected range. Retrieval time and overall dataset coverage describe the saved snapshot and remain visible across filters. Missing values stay null and break the chart line. Switching domains resets date filters to that domain's available range. A missing CPI snapshot prompts you to run `ingest-cpi` and leaves Labor available.
 
 Read API routes:
 
 - `GET /api/health`: server health (does not imply data availability).
 - `GET /api/series/UNRATE`: metadata and saved observations.
 - `GET /api/series/UNRATE?start=2020-01-01&end=2024-12-31`: inclusive date filtering.
+- `GET /api/series/CPIAUCSL`: original-unit CPI index, including the stored lookback.
+- `GET /api/series/CPIAUCSL_YOY`: separately labeled derived inflation with its formula and source-series identity.
+
+All series routes accept the same optional `start` and `end` filters. `CPIAUCSL_YOY` is a local identifier, not a FRED series ID. Its source link points to CPIAUCSL. The API validates the stored CPI snapshot and computes the derived series on each read; it never calls FRED.
 
 Errors return JSON with an `error.code` and `error.message`: invalid queries return 400, missing snapshots or routes return 404, and corrupt/unreadable snapshots return 503. There are no ingestion or filesystem browsing endpoints. The standard-library HTTP server is for local development; a production API adapter is a later milestone.
 
@@ -88,7 +114,7 @@ npm run build
 ## Repository layout
 
 ```text
-backend/src/economic_dashboard/  Ingestion, read API, CLI, Lambda entry point
+backend/src/economic_dashboard/  Catalog, ingestion, analytics, read API, CLI, Lambda entry point
 backend/tests/                  Offline ingestion and API tests
 frontend/                      React, TypeScript, Vite, Tailwind, Recharts
 data/indicators.yaml            Indicator catalog and implementation status

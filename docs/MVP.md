@@ -10,11 +10,11 @@ Build a reproducible portfolio project that helps users inspect national U.S. ec
 | --- | --- | --- | --- |
 | Labor | Unemployment rate (`UNRATE`) | FRED / BLS | Local ingestion, read API, and chart implemented |
 | Growth | Real GDP (`GDPC1`) | FRED / BEA | Planned |
-| Inflation | CPI (`CPIAUCSL`) | FRED / BLS | Planned |
+| Inflation | CPI index (`CPIAUCSL`) and derived YoY inflation | FRED / BLS | Local ingestion, analytics, read API, and chart implemented |
 | Interest rates | Effective federal funds rate (`FEDFUNDS`) | FRED / Federal Reserve | Planned |
 | Fiscal health | Federal debt and budget balance | Treasury Fiscal Data | Endpoint and definitions to select |
 
-Candidate indicators require metadata verification before implementation. CPI level is not itself an inflation rate; year-over-year inflation will be an explicitly labeled derived metric. Fiscal ratios need aligned units and time periods.
+Remaining candidate indicators require metadata verification before implementation. CPI level is not itself an inflation rate; year-over-year inflation is an explicitly labeled derived metric. Fiscal ratios need aligned units and time periods.
 
 ## First vertical slice
 
@@ -40,6 +40,19 @@ Full vertical-slice acceptance criteria:
 - End-to-end checks verify the fetched series reaches the chart.
 
 The read API and frontend implement these behaviors locally. Backend tests exercise ingestion-to-API delivery and date filtering; frontend tests exercise contract validation, loading, errors/retry, missing values, empty ranges, and consistent filtering. Browser review verifies actual chart rendering and representative range controls. AWS operation, production API hosting, and scheduled refresh remain later milestones.
+
+## Second vertical slice: inflation
+
+Implemented locally:
+
+- Retrieve original-unit CPIAUCSL with a 12-month lookback before the requested chart period.
+- Archive raw responses and atomically publish a normalized index snapshot, preserving source and retrieval provenance.
+- Derive `CPIAUCSL_YOY` by matching the same calendar month one year earlier; calculate before filtering.
+- Serve both original CPI and derived inflation through the reusable read API.
+- Add Labor/Inflation navigation with independent date ranges, source attribution, methodology, latest-in-range rate, and observation table.
+- Support negative inflation and preserve nulls when current/prior values or months are missing.
+
+The dashboard explicitly labels the seasonally adjusted CPI input; this differs from using the unadjusted CPI for the commonly reported headline rate. Tests cover known calculations, lookback, missing months, deflation, failures, API filtering, and domain switching. Local runtime verification uses actual fetched CPI data.
 
 ## Later milestones
 

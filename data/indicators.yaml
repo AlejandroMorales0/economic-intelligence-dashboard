@@ -21,8 +21,27 @@ indicators:
     domain: inflation
     source: fred
     series_id: CPIAUCSL
-    status: planned
-    notes: Verify metadata; derive and label year-over-year inflation separately.
+    title: "Consumer Price Index for All Urban Consumers: All Items in U.S. City Average"
+    units: Index 1982-1984=100
+    frequency: Monthly
+    seasonal_adjustment: Seasonally Adjusted
+    source_url: https://fred.stlouisfed.org/series/CPIAUCSL
+    transformation: none
+    status: local_ingestion_and_api
+    notes: Normalized index retains 12 months of lookback before the requested display range.
+  - id: cpi_inflation_yoy
+    domain: inflation
+    source: fred
+    series_id: CPIAUCSL_YOY
+    source_series_id: CPIAUCSL
+    title: CPI inflation, year over year
+    units: Percent
+    frequency: Monthly
+    seasonal_adjustment: Seasonally Adjusted
+    source_url: https://fred.stlouisfed.org/series/CPIAUCSL
+    transformation: "(CPI this month / CPI in the same month one year earlier - 1) * 100"
+    status: local_vertical_slice
+    notes: Locally derived from seasonally adjusted CPI; not the unadjusted headline measure.
   - id: federal_funds_rate
     domain: interest_rates
     source: fred

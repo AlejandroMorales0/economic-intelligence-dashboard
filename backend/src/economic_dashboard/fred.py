@@ -82,9 +82,16 @@ class FredClient:
         raise IngestionError(f"FRED request failed after bounded retries: {failure}.")
 
     def fetch_unrate(self, start: str, end: str | None = None) -> list[dict]:
+        return self.fetch_series("UNRATE", start, end)
+
+    def fetch_series(self, series_id: str, start: str, end: str | None = None) -> list[dict]:
+        from .catalog import RAW_SERIES
+
+        if series_id not in RAW_SERIES:
+            raise IngestionError("Unsupported FRED series.")
         validate_range(start, end)
         params = {
-            "series_id": "UNRATE", "observation_start": start,
+            "series_id": series_id, "observation_start": start,
             "sort_order": "asc", "units": "lin", "limit": 100000,
         }
         if end:

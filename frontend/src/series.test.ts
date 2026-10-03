@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import { filterRows, isDate, monthLabel, parseSeries, presetStart } from './series'
 
-import { fixture } from './test-fixtures'
+import { fixture, inflationFixture } from './test-fixtures'
 
 describe('series contract and date calculations', () => {
+  it('accepts derived inflation including deflation and checks lineage', () => {
+    expect(parseSeries(inflationFixture, 'CPIAUCSL_YOY').observations[2].value).toBe(-2)
+    expect(() => parseSeries(inflationFixture)).toThrow()
+    expect(() => parseSeries({ ...inflationFixture, transformation: undefined }, 'CPIAUCSL_YOY')).toThrow()
+    expect(() => parseSeries({ ...inflationFixture, observations: [{ ...inflationFixture.observations[0], value: -100 }] }, 'CPIAUCSL_YOY')).toThrow()
+  })
   it('validates the contract and preserves missing values', () => {
     expect(parseSeries(fixture).observations[1].value).toBeNull()
     expect(() => parseSeries({ ...fixture, observations: [{ ...fixture.observations[0], value: NaN }] })).toThrow()
