@@ -11,18 +11,46 @@ vi.mock('recharts', () => ({
 }))
 
 function respond(data: unknown = fixture, ok = true) {
-  vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok, json: async () => data }))
+  vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => ({ ok, json: async () => data === fixture && url.endsWith('CPIAUCSL_YOY') ? inflationFixture : data })))
 }
 
 describe('dashboard', () => {
+  it('opens on independently loaded chart tiles and expands and returns without refetching', async () => {
+    respond()
+    render(<App />)
+    expect(screen.getByRole('heading', { name: 'Economic overview' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getAllByTestId('chart')).toHaveLength(2))
+    expect(screen.getByText('3.8%')).toBeInTheDocument()
+    expect(screen.getByText('-2.0%')).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: 'Open CPI inflation, year over year' }))
+    expect(screen.getByRole('heading', { name: 'Inflation over time' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Start date')).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledTimes(2)
+    fireEvent.click(screen.getByRole('button', { name: '← Back to overview' }))
+    expect(screen.getAllByTestId('chart')).toHaveLength(2)
+    expect(screen.getByRole('button', { name: 'Open CPI inflation, year over year' })).toHaveFocus()
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+  it('keeps a healthy tile usable when the other snapshot is missing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => ({
+      ok: !url.endsWith('CPIAUCSL_YOY'), json: async () => url.endsWith('CPIAUCSL_YOY')
+        ? { error: { message: 'Run ingest-cpi first.' } } : fixture,
+    })))
+    render(<App />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Run ingest-cpi first')
+    expect(screen.getByText('3.8%')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open Unemployment rate' }))
+    expect(screen.getByRole('heading', { name: 'Unemployment over time' })).toBeInTheDocument()
+  })
   it('shows loading before data arrives', () => {
     vi.stubGlobal('fetch', vi.fn().mockReturnValue(new Promise(() => {})))
-    render(<App />)
+    render(<App />); fireEvent.click(screen.getByRole('button', { name: 'Open Unemployment rate' }))
     expect(screen.getByRole('status')).toHaveTextContent('Loading unemployment data')
   })
   it('loads the saved series and filters cards and table together', async () => {
     respond()
-    render(<App />)
+    render(<App />); fireEvent.click(screen.getByRole('button', { name: 'Open Unemployment rate' }))
     await screen.findByText('Latest rate in selected range')
     fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2024-01-01' } })
     expect(screen.getByText('Latest rate in selected range').parentElement).toHaveTextContent('3.7%')
@@ -34,7 +62,7 @@ describe('dashboard', () => {
     expect(screen.getByRole('link', { name: /FRED/ })).toHaveAttribute('href', fixture.source_url)
   })
   it('shows empty, all-missing, and invalid range states', async () => {
-    respond(); render(<App />); await screen.findByText('Latest rate in selected range')
+    respond(); render(<App />); fireEvent.click(screen.getByRole('button', { name: 'Open Unemployment rate' })); await screen.findByText('Latest rate in selected range')
     fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2025-12-31' } })
     fireEvent.change(screen.getByLabelText('Start date'), { target: { value: '2025-01-01' } })
     expect(screen.getByText('No data to plot')).toBeInTheDocument()
@@ -45,7 +73,7 @@ describe('dashboard', () => {
   })
   it('reports API errors and retries successfully', async () => {
     respond({ error: { message: 'No saved UNRATE data. Run ingest-unrate first.' } }, false)
-    render(<App />)
+    render(<App />); fireEvent.click(screen.getByRole('button', { name: 'Open Unemployment rate' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Run ingest-unrate first')
     respond()
     fireEvent.click(screen.getByText('Try again'))
@@ -55,7 +83,7 @@ describe('dashboard', () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => ({
       ok: true, json: async () => url.endsWith('CPIAUCSL_YOY') ? inflationFixture : fixture,
     })))
-    render(<App />)
+    render(<App />); fireEvent.click(screen.getByRole('button', { name: 'Open Unemployment rate' }))
     await screen.findByText('Latest rate in selected range')
     fireEvent.change(screen.getByLabelText('End date'), { target: { value: '2024-01-01' } })
     fireEvent.click(screen.getByRole('tab', { name: 'Inflation' }))
@@ -70,8 +98,11 @@ describe('dashboard', () => {
     expect(screen.getByText('Latest rate in selected range').parentElement).toHaveTextContent('3.8%')
   })
   it('shows a CPI ingestion hint when inflation data is missing', async () => {
-    respond(); render(<App />); await screen.findByText('Latest rate in selected range')
-    respond({ error: { message: 'No saved CPIAUCSL data. Run ingest-cpi first.' } }, false)
+    vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => ({
+      ok: !url.endsWith('CPIAUCSL_YOY'), json: async () => url.endsWith('CPIAUCSL_YOY')
+        ? { error: { message: 'No saved CPIAUCSL data. Run ingest-cpi first.' } } : fixture,
+    })))
+    render(<App />); fireEvent.click(screen.getByRole('button', { name: 'Open Unemployment rate' })); await screen.findByText('Latest rate in selected range')
     fireEvent.click(screen.getByRole('tab', { name: 'Inflation' }))
     expect(await screen.findByRole('alert')).toHaveTextContent('Run ingest-cpi first')
   })
@@ -79,7 +110,7 @@ describe('dashboard', () => {
     vi.stubGlobal('fetch', vi.fn().mockImplementation(async (url: string) => ({
       ok: true, json: async () => url.endsWith('CPIAUCSL_YOY') ? inflationFixture : fixture,
     })))
-    render(<App />); await screen.findByText('Latest rate in selected range')
+    render(<App />); fireEvent.click(screen.getByRole('button', { name: 'Open Unemployment rate' })); await screen.findByText('Latest rate in selected range')
     fireEvent.keyDown(screen.getByRole('tab', { name: 'Labor' }), { key: 'ArrowRight' })
     await screen.findByText('Year-over-year change:')
     expect(screen.getByRole('tab', { name: 'Inflation' })).toHaveFocus()
